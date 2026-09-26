@@ -1,0 +1,28 @@
+[project]
+name = "library-readers-api"
+version = "1.0.0"
+description = "Асинхронный сервис учёта читателей библиотеки (FastAPI + SQLAlchemy 2.0 + Alembic + PostgreSQL)"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ANN", "S", "C4", "SIM", "ASYNC"]
+ignore = ["ANN101", "ANN102", "ANN401", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/*" = ["ALL"]
+"app/services/exceptions.py" = ["ANN"]
+"tests/*" = ["S101"]
+
+[tool.mypy]
+python_version = "3.11"
+plugins = ["pydantic.mypy"]
+strict = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "alembic.*"
+ignore_errors = true

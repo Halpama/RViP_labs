@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: library-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-library}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-library}
+      POSTGRES_DB: ${POSTGRES_DB:-library}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-library} -d ${POSTGRES_DB:-library}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - library-net
+    ports:
+      # Опционально: доступ к БД с хоста (для локальной разработки).
+      - "5432:5432"
+
+  api:
+    build: .
+    image: library-readers-api:latest
+    container_name: library-api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-library}:${POSTGRES_PASSWORD:-library}@db:5432/${POSTGRES_DB:-library}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    networks:
+      - library-net
+
+networks:
+  library-net:
+    driver: bridge
+
+volumes:
+  pgdata:

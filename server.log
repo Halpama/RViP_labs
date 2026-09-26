@@ -1,0 +1,9 @@
+INFO:     Started server process [2584]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49010 - "GET /api/v1/reports/readers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49020 - "POST /api/v1/readers/1/books HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49034 - "POST /api/v1/readers/1/books/1/return HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49046 - "GET /api/v1/reports/readers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49052 - "GET /api/v1/readers?has_books=true&limit=5 HTTP/1.1" 200 OK
