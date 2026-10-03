@@ -38,5 +38,5 @@
 ## 6. Integrated verification
 
 - [ ] 6.1 Run the focused unit/API/migration test suite and static compile checks; verify all tests pass against the migrated PostgreSQL service.
-- [ ] 6.2 Run `docker compose up --build` from a clean database and exercise create, issue, return, revoke, delete, and summary endpoints through `/docs` or HTTP requests; verify migration runs before API readiness.
-- [ ] 6.3 Validate the completed OpenSpec change with `openspec validate --change library-readers-service --strict`; verify all required artifacts and scenarios are accepted.
+- [x] 6.2 Run `docker compose up --build` from a clean database and exercise create, issue, return, revoke, delete, and summary endpoints through `/docs` or HTTP requests; verify migration runs before API readiness.
+- [x] 6.3 Validate the completed OpenSpec change with `openspec validate --change library-readers-service --strict`; verify all required artifacts and scenarios are accepted.
