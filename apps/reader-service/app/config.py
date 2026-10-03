@@ -6,12 +6,20 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def find_env_file() -> Path | None:
+    for parent in Path(__file__).resolve().parents:
+        env_file = parent / ".env"
+        if env_file.is_file():
+            return env_file
+    return None
+
+
 class Settings(BaseSettings):
     database_url: str = Field(validation_alias="DATABASE_URL")
     app_port: int = Field(default=3001, validation_alias="APP_PORT")
 
     model_config = SettingsConfigDict(
-        env_file=Path(__file__).resolve().parents[3] / ".env",
+        env_file=find_env_file(),
         extra="ignore",
     )
 
