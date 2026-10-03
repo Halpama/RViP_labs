@@ -19,9 +19,9 @@ Docker: `docker compose up --build` → API http://localhost:3001, Swagger /docs
 `uvicorn app.main:app --reload --port 3001`.
 
 ## Как проверить
-- Тесты: из `apps/reader-service` выполнить `python -m pytest -rs`.
-  Тесты API и БД требуют `TEST_DATABASE_URL` (отдельная база `library_test`);
-  без неё они пропускаются (skipped), это не ошибка.
+- Тесты: из `apps/reader-service` выполнить
+  `TEST_DATABASE_URL=postgresql+asyncpg://library:library@localhost:55432/library_test python -m pytest -rs`.
+  Критерий готовности — `0 skipped`.
 - Сервис жив: `GET http://127.0.0.1:3001/docs` отдаёт 200
   (использовать `127.0.0.1`, а не `localhost`: из-за `HTTP_PROXY` в окружении
   запросы к `localhost` могут возвращать 503).
@@ -37,6 +37,8 @@ Docker: `docker compose up --build` → API http://localhost:3001, Swagger /docs
 - В БД ровно одна таблица `readers` (плюс служебная `alembic_version`).
 - Схема создаётся только Alembic; `create_all` не использовать.
 - Не менять существующие эндпоинты и коды ответов без изменения спецификации.
+- PATCH принимает только непустые `full_name` и `card_number`; `null`, пустые,
+  state-поля и дополнительные поля должны возвращать HTTP 422.
 - Секреты не коммитить: `.env` в `.gitignore`, в репозитории только `.env.example`.
 - В Docker `DATABASE_URL` задан в compose (хост `postgres`, порт 5432),
   локально в `.env` (хост `localhost`, порт 55432).

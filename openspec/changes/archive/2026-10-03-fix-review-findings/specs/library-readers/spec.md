@@ -1,36 +1,6 @@
-# Library Readers Specification
+# Spec Delta
 
-## Purpose
-
-Эта capability предоставляет библиотеке REST-контракт для регистрации читателей, управления активностью их билетов и учёта одной выданной книги на читателя. Она также отдаёт минимальную сводку для контроля текущей нагрузки библиотеки.
-
-## Requirements
-
-### Requirement: Reader records are persisted with unique library cards
-Система MUST хранить каждого читателя с идентификатором, полным именем, уникальным номером билета, признаком активности билета, необязательным названием книги и датой регистрации.
-
-#### Scenario: Create a reader
-- **WHEN** клиент отправляет `POST /readers` с именем и ещё не занятым номером билета
-- **THEN** система создаёт читателя с активным билетом, пустой книгой и датой регистрации и возвращает созданную запись с HTTP 201
-
-#### Scenario: Reject duplicate card number
-- **WHEN** клиент отправляет `POST /readers` с номером билета, уже принадлежащим другому читателю
-- **THEN** система не создаёт запись и возвращает HTTP 409 с описанием конфликта
-
-### Requirement: Clients can list and retrieve readers
-Система MUST предоставлять чтение списка читателей и отдельной записи по идентификатору.
-
-#### Scenario: List readers
-- **WHEN** клиент отправляет `GET /readers`
-- **THEN** система возвращает HTTP 200 и список читателей с полями состояния билета, книги и даты регистрации
-
-#### Scenario: Retrieve an existing reader
-- **WHEN** клиент отправляет `GET /readers/{id}` для существующего читателя
-- **THEN** система возвращает HTTP 200 и соответствующую запись
-
-#### Scenario: Retrieve an unknown reader
-- **WHEN** клиент запрашивает отсутствующий идентификатор
-- **THEN** система возвращает HTTP 404
+## MODIFIED Requirements
 
 ### Requirement: Clients can update reader profile and card state
 Система MUST поддерживать частичное изменение только профиля читателя через `PATCH /readers/{id}` и MUST сохранять уникальность номера билета. Поля `full_name` и `card_number` MUST быть непустыми строками и MUST отклонять `null`; поля состояния `card_active` и `book_title` MUST быть недоступны через PATCH, а любые дополнительные поля MUST отклоняться.
@@ -59,7 +29,7 @@
 Система MUST удалять читателя по `DELETE /readers/{id}` только если у него нет книги на руках и MUST возвращать HTTP 404 для неизвестного идентификатора.
 
 #### Scenario: Delete an existing reader
-- **WHEN** клиент удаляет существующего читателя
+- **WHEN** клиент удаляет существующего читателя без книги
 - **THEN** система удаляет запись и возвращает HTTP 204 без тела ответа
 
 #### Scenario: Delete an unknown reader
@@ -81,6 +51,10 @@
 - **WHEN** у читателя есть книга на руках
 - **THEN** система не меняет билет и возвращает HTTP 409
 
+#### Scenario: Revoke an unknown reader
+- **WHEN** клиент изымает билет у отсутствующего идентификатора
+- **THEN** система возвращает HTTP 404
+
 ### Requirement: Books can be issued only to eligible readers
 Система MUST выдавать одну книгу через `POST /readers/{id}/issue-book`, принимая непустое название книги, только читателю с активным билетом и без другой книги, и MUST возвращать HTTP 404 для неизвестного идентификатора.
 
@@ -95,6 +69,10 @@
 #### Scenario: Reject second book
 - **WHEN** клиент пытается выдать вторую книгу читателю, у которого уже есть книга
 - **THEN** система не меняет запись и возвращает HTTP 409
+
+#### Scenario: Issue to an unknown reader
+- **WHEN** клиент выдаёт книгу отсутствующему идентификатору
+- **THEN** система возвращает HTTP 404
 
 ### Requirement: Issued books can be returned
 Система MUST возвращать книгу через `POST /readers/{id}/return-book`, очищая сведения о книге, и MUST возвращать HTTP 404 для неизвестного идентификатора.

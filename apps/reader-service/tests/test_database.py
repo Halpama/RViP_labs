@@ -13,6 +13,7 @@ async def test_migrated_reader_defaults_and_unique_card(session):
     session.add(first)
     await session.commit()
     await session.refresh(first)
+    first_id = first.id
 
     assert first.card_active is True
     assert first.book_title is None
@@ -22,4 +23,4 @@ async def test_migrated_reader_defaults_and_unique_card(session):
     with pytest.raises(IntegrityError):
         await session.commit()
     await session.rollback()
-    assert (await session.scalar(select(Reader).where(Reader.id == first.id))).full_name == "Grace Hopper"
+    assert (await session.scalar(select(Reader).where(Reader.id == first_id))).full_name == "Grace Hopper"

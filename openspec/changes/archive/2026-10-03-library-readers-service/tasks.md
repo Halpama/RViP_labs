@@ -18,7 +18,7 @@
 - [x] 3.1 Define request/response schemas for reader creation, PATCH updates, book issuance, reader responses, and summary responses; verify malformed required fields produce HTTP 422.
 - [x] 3.2 Implement `POST /readers`, `GET /readers`, `GET /readers/{id}`, `PATCH /readers/{id}`, and `DELETE /readers/{id}` with 201/200/204/404/409 behavior from the spec; verify CRUD and duplicate-card API tests.
 - [x] 3.3 Enforce deletion protection when `book_title` is populated and translate unique-card database conflicts into HTTP 409; verify the reader remains unchanged after both conflict paths.
-- [ ] 3.4 Add API tests for unknown IDs, partial updates, response shapes, and empty-reader list behavior; verify all tests run against a migrated PostgreSQL database.
+- [ ] 3.4 Add API tests for unknown IDs, partial updates, response shapes, and empty-reader list behavior; verify all tests run against a migrated PostgreSQL database. **закрыто/вынесено в fix-review-findings**
 
 ## 4. Card and circulation operations
 
@@ -26,7 +26,7 @@
 - [x] 4.2 Implement `POST /readers/{id}/issue-book` with non-empty title validation, active-card checks, one-book invariant, row-level locking, and HTTP 409 conflicts; verify eligible and rejected issue scenarios.
 - [x] 4.3 Implement `POST /readers/{id}/return-book` with row-level locking and the no-book HTTP 409 rule; verify successful return and unchanged-state conflict tests.
 - [x] 4.4 Implement `GET /reports/summary` using aggregate counts; verify empty, mixed, and all-issued datasets return correct total and outstanding-book counts.
-- [ ] 4.5 Add transaction/concurrency tests for competing issue, return, revoke, and delete operations; verify no operation can leave contradictory card/book state.
+- [ ] 4.5 Add transaction/concurrency tests for competing issue, return, revoke, and delete operations; verify no operation can leave contradictory card/book state. **закрыто/вынесено в fix-review-findings**
 
 ## 5. Containerization and documentation
 
@@ -37,6 +37,6 @@
 
 ## 6. Integrated verification
 
-- [ ] 6.1 Run the focused unit/API/migration test suite and static compile checks; verify all tests pass against the migrated PostgreSQL service.
+- [ ] 6.1 Run the focused unit/API/migration test suite and static compile checks; verify all tests pass against the migrated PostgreSQL service. **закрыто/вынесено в fix-review-findings**
 - [x] 6.2 Run `docker compose up --build` from a clean database and exercise create, issue, return, revoke, delete, and summary endpoints through `/docs` or HTTP requests; verify migration runs before API readiness.
 - [x] 6.3 Validate the completed OpenSpec change with `openspec validate --change library-readers-service --strict`; verify all required artifacts and scenarios are accepted.

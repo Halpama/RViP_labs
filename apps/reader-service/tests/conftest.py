@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from app.db import get_session
+from app.main import app
 
 
 DATABASE_URL = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL")
@@ -38,3 +42,16 @@ async def session():
         check=True,
     )
     await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def client(session):
+    async def override_session():
+        yield session
+
+    app.dependency_overrides[get_session] = override_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
