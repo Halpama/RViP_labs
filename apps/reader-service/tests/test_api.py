@@ -122,26 +122,6 @@ async def test_circulation_conflicts_leave_reader_unchanged(client):
 
 
 @pytest.mark.asyncio
-async def test_summary_for_empty_mixed_and_all_issued_datasets(client):
-    empty = await client.get("/reports/summary")
-    assert empty.status_code == 200
-    assert empty.json() == {"total_readers": 0, "outstanding_books": 0}
-
-    first = await create_reader(client)
-    second = await create_reader(client, full_name="Grace Hopper", card_number="CARD-2")
-    await client.post(f"/readers/{first['id']}/issue-book", json={"book_title": "Algorithms"})
-
-    mixed = await client.get("/reports/summary")
-    assert mixed.status_code == 200
-    assert mixed.json() == {"total_readers": 2, "outstanding_books": 1}
-
-    await client.post(f"/readers/{second['id']}/issue-book", json={"book_title": "Compilers"})
-    all_issued = await client.get("/reports/summary")
-    assert all_issued.status_code == 200
-    assert all_issued.json() == {"total_readers": 2, "outstanding_books": 2}
-
-
-@pytest.mark.asyncio
 async def test_reader_lifecycle(client):
     reader = await create_reader(client)
     reader_id = reader["id"]

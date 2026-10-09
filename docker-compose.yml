@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-library}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-library}
     ports:
-      - "55432:5432"
+      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -25,14 +25,34 @@ services:
       postgres:
         condition: service_healthy
 
-  api:
+  reader-service:
     build:
       context: ./apps/reader-service
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-library}:${POSTGRES_PASSWORD:-library}@postgres:5432/${POSTGRES_DB:-library}
-      APP_PORT: ${APP_PORT:-3001}
-    ports:
-      - "3001:3001"
+      APP_PORT: 3001
     depends_on:
       migrate:
         condition: service_completed_successfully
+
+  report-service:
+    build:
+      context: ./apps/report-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-library}:${POSTGRES_PASSWORD:-library}@postgres:5432/${POSTGRES_DB:-library}
+      APP_PORT: 3002
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  gateway:
+    image: nginx:1.27-alpine
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      reader-service:
+        condition: service_started
+      report-service:
+        condition: service_started

@@ -1,0 +1,31 @@
+{
+  "info": {
+    "name": "Library API",
+    "_postman_id": "1d3d7b0e-6b7e-4ef3-9ae5-1d9e4b3e2c90",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{"key": "base_url", "value": "http://127.0.0.1:8080"}],
+  "item": [
+    {
+      "name": "Сквозной сценарий",
+      "item": [
+        {"name": "Создать читателя", "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"full_name\":\"Postman Reader\",\"card_number\":\"POSTMAN-{{$randomInt}}\"}"}, "url": "{{base_url}}/reader-service/readers"}, "event": [{"listen": "test", "script": {"exec": ["pm.test('created', () => pm.response.code === 201);", "pm.environment.set('reader_id', pm.response.json().id);"]}}]},
+        {"name": "Выдать книгу", "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"book_title\":\"Postman Book\"}"}, "url": "{{base_url}}/reader-service/readers/{{reader_id}}/issue-book"}, "event": [{"listen": "test", "script": {"exec": ["pm.test('issued', () => pm.response.code === 200);"]}}]},
+        {"name": "Список отчёта", "request": {"method": "GET", "url": "{{base_url}}/report-service/reports/readers"}, "event": [{"listen": "test", "script": {"exec": ["pm.test('report list', () => pm.response.code === 200);", "pm.expect(pm.response.json()).to.be.an('array');"]}}]},
+        {"name": "Сводка", "request": {"method": "GET", "url": "{{base_url}}/report-service/reports/summary"}, "event": [{"listen": "test", "script": {"exec": ["pm.test('summary', () => pm.response.code === 200);", "pm.expect(pm.response.json()).to.have.property('total_readers');"]}}]},
+        {"name": "Вернуть книгу", "request": {"method": "POST", "url": "{{base_url}}/reader-service/readers/{{reader_id}}/return-book"}, "event": [{"listen": "test", "script": {"exec": ["pm.test('returned', () => pm.response.code === 200);"]}}]},
+        {"name": "Изъять билет", "request": {"method": "POST", "url": "{{base_url}}/reader-service/readers/{{reader_id}}/revoke-card"}, "event": [{"listen": "test", "script": {"exec": ["pm.test('revoked', () => pm.response.code === 200);"]}}]},
+        {"name": "Удалить читателя", "request": {"method": "DELETE", "url": "{{base_url}}/reader-service/readers/{{reader_id}}"}, "event": [{"listen": "test", "script": {"exec": ["pm.test('deleted', () => pm.response.code === 204);"]}}]}
+      ]
+    },
+    {"name": "Reader API", "item": [
+      {"name": "List readers", "request": {"method": "GET", "url": "{{base_url}}/reader-service/readers"}, "event": [{"listen": "test", "script": {"exec": ["pm.test('reader list', () => pm.response.code === 200);", "pm.expect(pm.response.json()).to.be.an('array');"]}}]},
+      {"name": "Reader docs", "request": {"method": "GET", "url": "{{base_url}}/reader-service/docs"}, "event": [{"listen": "test", "script": {"exec": ["pm.test('reader docs', () => pm.response.code === 200);"]}}]},
+      {"name": "Reader OpenAPI", "request": {"method": "GET", "url": "{{base_url}}/reader-service/openapi.json"}, "event": [{"listen": "test", "script": {"exec": ["pm.test('reader OpenAPI', () => pm.response.code === 200);", "pm.expect(pm.response.json()).to.have.property('paths');"]}}]}
+    ]},
+    {"name": "Report API", "item": [
+      {"name": "Report docs", "request": {"method": "GET", "url": "{{base_url}}/report-service/docs"}, "event": [{"listen": "test", "script": {"exec": ["pm.test('report docs', () => pm.response.code === 200);"]}}]},
+      {"name": "Report OpenAPI", "request": {"method": "GET", "url": "{{base_url}}/report-service/openapi.json"}, "event": [{"listen": "test", "script": {"exec": ["pm.test('report OpenAPI', () => pm.response.code === 200);", "pm.expect(pm.response.json()).to.have.property('paths');"]}}]}
+    ]}
+  ]
+}

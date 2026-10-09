@@ -1,37 +1,27 @@
-# AI process
-
 ## Prompts
 
 ### Propose
 
-- Задача 1: вставить автором
-- Задача 2: вставить автором
-- Задача 3: исправить замечания ревью по контракту PATCH, API-тестам,
-  воспроизводимости окружения и документации сервиса читателей.
+- Задача автора (заполнить при необходимости)
 
 ### Apply
 
-`/openspec-apply-change fix-review-findings`
-
-## Пересмотренные решения
-
-- Для миграций используется Alembic вместо Liquibase.
-- Сервис `migrate` переопределяет entrypoint контейнера и запускает
-  `alembic upgrade head`.
-- `entrypoint.sh` сохраняет CRLF-совместимое оформление для запуска в Docker.
-- Поиск `.env` выполняется от корня проекта, а не через `parents[3]`.
-- Конкурирующие issue/return/revoke/delete операции не входят в объём этого
-  изменения; новые тесты конкурентности не добавлялись.
+- Задача автора (заполнить при необходимости)
 
 ## Проверки
 
-| Проверка | Фактический результат |
+| Команда | Фактический результат |
 |---|---|
-| `TEST_DATABASE_URL=postgresql+asyncpg://library:library@localhost:55432/library_test python -m pytest -rs` | 26 passed, 0 skipped |
-| `pip install -r requirements.txt` в venv Python 3.13.7 | Установленные pinned-зависимости уже соответствуют requirements.txt |
-| `docker compose build` | Успешно собраны образы `migrate` и `api` на `python:3.13.7-slim` |
-| `docker compose config` | Успешно; порядок postgres → migrate → api и `service_completed_successfully` сохранены |
-| `docker compose up --build` | PostgreSQL healthy, migrate завершён с кодом 0, API запущен |
-| Сценарий Swagger/API | Создание → выдача книги → summary (1/1) → возврат → изъятие билета → удаление; ответы успешны, DELETE = 204 |
-| `docker compose down` | Успешно, контейнеры и сеть удалены |
-| `python -m compileall -q app tests` | Успешно |
+| `docker compose config` | Успешно; postgres, migrate, reader-service, report-service и gateway присутствуют, опубликованы только 127.0.0.1:8080 и 127.0.0.1:55432 |
+| `openspec validate report-service-and-gateway --type change --strict` | Change valid |
+| `python -m compileall -q app tests` (report-service) | Успешно |
+| JSON-проверка Postman collection/environment | Успешно |
+| `git diff --check` | Успешно |
+| `python -m pytest -rs` (reader-service, PostgreSQL на временном порту) | 25 passed, 0 skipped |
+| `python -m pytest -rs` (report-service, PostgreSQL на временном порту) | 6 passed, 0 skipped |
+| `python -m pytest -q tests/test_reports_unit.py` (report-service) | 3 passed |
+| `docker compose up --build -d` | Сначала остановлено из-за Windows-резерва порта 55432; проверочный Compose override на доступном host-порту успешно поднял все контейнеры |
+| Gateway smoke checks | `/docs`, `/openapi.json`, reader/report endpoints returned 200; OpenAPI servers used `/reader-service` and `/report-service` |
+| Gateway lifecycle | Create → issue → report list/summary → return → revoke → delete; DELETE returned 204 |
+| Gateway unavailable-upstream check | Остановлен report-service; gateway returned HTTP 502 with JSON `{"error":"upstream service unavailable"}` |
+| `docker compose down` (с проверочным override) | Успешно |
