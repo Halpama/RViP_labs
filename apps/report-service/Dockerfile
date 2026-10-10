@@ -5,6 +5,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY entrypoint.sh .
 ENV PYTHONUNBUFFERED=1
-EXPOSE 3002
 RUN chmod +x entrypoint.sh
 ENTRYPOINT ["./entrypoint.sh"]

@@ -1,50 +1,37 @@
-import os
-import subprocess
-import sys
-from pathlib import Path
+from collections.abc import Callable
 
-DATABASE_URL = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL")
-if DATABASE_URL:
-    os.environ.setdefault("DATABASE_URL", DATABASE_URL)
-
-import pytest
+import httpx
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from httpx import ASGITransport, AsyncClient, MockTransport, Request, Response
 
-from app.db import get_session
 from app.main import app
 
-READER_ROOT = Path(__file__).parents[2] / "reader-service"
+
+@pytest_asyncio.fixture
+async def client():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as test_client:
+        yield test_client
 
 
 @pytest_asyncio.fixture
-async def session():
-    if not DATABASE_URL:
-        pytest.skip("TEST_DATABASE_URL or DATABASE_URL is required")
-    engine = create_async_engine(DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1))
-    environment = {**os.environ, "DATABASE_URL": DATABASE_URL}
-    try:
-        subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], cwd=READER_ROOT,
-                       env=environment, check=True)
-    except subprocess.CalledProcessError as error:
-        await engine.dispose()
-        pytest.skip(f"PostgreSQL is unavailable: {error}")
-    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with factory() as db_session:
-        yield db_session
-    subprocess.run([sys.executable, "-m", "alembic", "downgrade", "base"], cwd=READER_ROOT,
-                   env=environment, check=True)
-    await engine.dispose()
+async def reader_transport():
+    handlers: list[Callable[[Request], Response]] = []
 
+    def handler(request: Request) -> Response:
+        if not handlers:
+            return Response(200, json=[])
+        return handlers.pop(0)(request)
 
-@pytest_asyncio.fixture
-async def client(session):
-    async def override_session():
-        yield session
-    app.dependency_overrides[get_session] = override_session
+    reader_client = httpx.AsyncClient(
+        transport=MockTransport(handler),
+        base_url="http://reader-service:3001",
+        timeout=5.0,
+    )
+    app.state.reader_client = reader_client
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            yield client
+        yield handlers
     finally:
-        app.dependency_overrides.clear()
+        await reader_client.aclose()
