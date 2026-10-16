@@ -14,8 +14,12 @@ Python 3.13, FastAPI, SQLAlchemy async, PostgreSQL 16, Alembic.
 
 ```bash
 docker compose up --build
+docker compose up --build --scale reader-service=2
 docker compose down
 ```
+
+Nginx автоматически обнаруживает реплики `reader-service` через Docker DNS;
+после изменения числа реплик конфигурацию nginx менять не нужно.
 
 Swagger: `/reader-service/docs` и `/report-service/docs`. Postman-коллекция и
 окружение находятся в `postman/`.

@@ -11,6 +11,17 @@ read-only `report-service`, доступных через nginx gateway.
 docker compose up --build
 ```
 
+Для запуска двух экземпляров `reader-service` с автоматическим обнаружением
+реплик nginx используйте:
+
+```bash
+docker compose up --build --scale reader-service=2
+```
+
+Nginx разрешает имя `reader-service` через встроенный DNS Docker и обновляет
+список адресов каждые 5 секунд. Поэтому новые реплики добавляются без ручного
+изменения `gateway/nginx.conf`.
+
 - Gateway: http://127.0.0.1:8080
 - Reader Swagger: http://127.0.0.1:8080/reader-service/docs
 - Report Swagger: http://127.0.0.1:8080/report-service/docs
