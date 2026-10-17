@@ -1,0 +1,45 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {
+          "expr": "sum by (container) (count_over_time({service=\"reader-service\"}[5m]))",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Reader requests by container (last 5 minutes)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 8},
+      "id": 2,
+      "options": {"deduplication": true, "enableLogDetails": true, "prettifyLogMessage": true, "showCommonLabels": false, "showLabels": true, "sortOrder": "Descending", "wrapLines": false},
+      "targets": [
+        {
+          "expr": "{service=~\"reader-service|report-service|gateway\"}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Application and gateway logs",
+      "type": "logs"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["logs", "load-balancing"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "title": "Library services observability",
+  "uid": "library-observability",
+  "version": 1
+}
