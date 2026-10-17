@@ -51,6 +51,7 @@ services:
       context: ./apps/report-service
     environment:
       READER_SERVICE_URL: http://reader-service:3001
+      FILE_STORAGE_URL: http://file-storage-service:3003
       APP_PORT: 3002
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:3002/docs')\""]
@@ -60,6 +61,23 @@ services:
     depends_on:
       reader-service:
         condition: service_healthy
+      file-storage-service:
+        condition: service_healthy
+    networks:
+      - internal
+
+  file-storage-service:
+    build:
+      context: ./apps/file-storage-service
+    environment:
+      APP_PORT: 3003
+    volumes:
+      - file_storage:/storage
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:3003/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     networks:
       - internal
 
@@ -74,6 +92,8 @@ services:
         condition: service_healthy
       report-service:
         condition: service_healthy
+      file-storage-service:
+        condition: service_healthy
     networks:
       - public
       - internal
@@ -81,3 +101,6 @@ services:
 networks:
   public:
   internal:
+
+volumes:
+  file_storage:

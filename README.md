@@ -1,9 +1,11 @@
 # Сервис учёта читателей библиотеки
 
-Проект состоит из `reader-service` (единственный владелец схемы и Alembic) и
-read-only `report-service`, доступных через nginx gateway.
+Проект состоит из `reader-service` (единственный владелец схемы и Alembic),
+read-only `report-service` и `file-storage-service`, доступных через nginx
+gateway.
 `report-service` не подключается к PostgreSQL: он получает данные только по
-REST от `reader-service`.
+REST от `reader-service`, формирует CSV и передаёт его в файловое хранилище
+через REST.
 
 ## Запуск
 
@@ -27,21 +29,25 @@ Nginx разрешает имя `reader-service` через встроенный
 - Gateway: http://127.0.0.1:8080
 - Reader Swagger: http://127.0.0.1:8080/reader-service/docs
 - Report Swagger: http://127.0.0.1:8080/report-service/docs
+- File storage Swagger: http://127.0.0.1:8080/file-storage/docs
 - PostgreSQL (только для локальных тестов): `127.0.0.1:55432`
 
 Остановка: `docker compose down`; с удалением данных: `docker compose down -v`.
 Приложения доступны только во внутренней сети Compose. Наружу опубликованы
 только gateway и PostgreSQL. Только reader-service изменяет единственную
 таблицу `readers`; report-service не содержит миграций, SQLAlchemy, `asyncpg`,
-`DATABASE_URL` или операций записи.
+`DATABASE_URL` или операций записи. CSV-файлы сохраняются в named volume
+`file_storage`, которым владеет file-storage-service.
 
 ## API
 
 Reader API доступен под `/reader-service/`: создание, просмотр, изменение,
 выдача/возврат книги, изъятие билета и удаление читателя.
-Report API доступен под `/report-service/`: `GET /reports/readers` и
-`GET /reports/summary`. Report-service запрашивает `GET /readers` у
-reader-service с таймаутом 5 секунд.
+Report API доступен под `/report-service/`: `GET /reports/readers`,
+`GET /reports/summary` и `POST /reports/export`. Последний запрашивает
+`GET /readers` у reader-service, формирует CSV и передаёт его в
+file-storage-service с таймаутом 5 секунд. Сохранённый файл можно скачать
+через `/file-storage/files/{filename}`.
 
 Postman: импортируйте `postman/library.postman_collection.json` и
 `postman/local.postman_environment.json`, затем запустите папку

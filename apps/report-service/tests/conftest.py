@@ -4,6 +4,7 @@ import httpx
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient, MockTransport, Request, Response
 
+from app.config import Settings
 from app.main import app
 
 
@@ -25,13 +26,16 @@ async def reader_transport():
             return Response(200, json=[])
         return handlers.pop(0)(request)
 
-    reader_client = httpx.AsyncClient(
+    service_client = httpx.AsyncClient(
         transport=MockTransport(handler),
-        base_url="http://reader-service:3001",
         timeout=5.0,
     )
-    app.state.reader_client = reader_client
+    app.state.http_client = service_client
+    app.state.settings = Settings(
+        READER_SERVICE_URL="http://reader-service:3001",
+        FILE_STORAGE_URL="http://file-storage-service:3003",
+    )
     try:
         yield handlers
     finally:
-        await reader_client.aclose()
+        await service_client.aclose()
