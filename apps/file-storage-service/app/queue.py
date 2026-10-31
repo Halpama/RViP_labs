@@ -2,6 +2,7 @@ import asyncio
 import base64
 import binascii
 import json
+import logging
 import re
 from pathlib import Path
 
@@ -13,6 +14,8 @@ EXPORT_QUEUE = "library.file-storage"
 EXPORT_ROUTING_KEY = "report.export"
 MESSAGE_SCHEMA = "report-export.v1"
 SAFE_FILENAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+RECONNECT_DELAY = 5
+queue_logger = logging.getLogger("queue")
 
 
 class StorageConsumer:
@@ -24,16 +27,7 @@ class StorageConsumer:
         self.task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
-        self.connection = await aio_pika.connect_robust(self.amqp_url)
-        self.channel = await self.connection.channel()
-        exchange = await self.channel.declare_exchange(
-            EXPORT_EXCHANGE,
-            ExchangeType.DIRECT,
-            durable=True,
-        )
-        queue = await self.channel.declare_queue(EXPORT_QUEUE, durable=True)
-        await queue.bind(exchange, routing_key=EXPORT_ROUTING_KEY)
-        self.task = asyncio.create_task(self._consume(queue))
+        self.task = asyncio.create_task(self._run())
 
     async def close(self) -> None:
         if self.task is not None:
@@ -41,6 +35,34 @@ class StorageConsumer:
             await asyncio.gather(self.task, return_exceptions=True)
         if self.connection is not None:
             await self.connection.close()
+
+    async def _run(self) -> None:
+        while True:
+            try:
+                self.connection = await aio_pika.connect_robust(self.amqp_url)
+                self.channel = await self.connection.channel()
+                exchange = await self.channel.declare_exchange(
+                    EXPORT_EXCHANGE,
+                    ExchangeType.DIRECT,
+                    durable=True,
+                )
+                queue = await self.channel.declare_queue(EXPORT_QUEUE, durable=True)
+                await queue.bind(exchange, routing_key=EXPORT_ROUTING_KEY)
+                await self._consume(queue)
+            except asyncio.CancelledError:
+                raise
+            except (aio_pika.AMQPException, OSError) as error:
+                queue_logger.warning(
+                    "RabbitMQ connection failed; retrying in %s seconds: %s",
+                    RECONNECT_DELAY,
+                    error,
+                )
+                await asyncio.sleep(RECONNECT_DELAY)
+            finally:
+                if self.connection is not None:
+                    await self.connection.close()
+                    self.connection = None
+                    self.channel = None
 
     async def _consume(self, queue: aio_pika.abc.AbstractQueue) -> None:
         async with queue.iterator() as messages:

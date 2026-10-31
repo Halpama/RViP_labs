@@ -37,7 +37,10 @@ class ReportPublisher:
 
     async def publish(self, filename: str, content: bytes) -> UUID:
         if self.exchange is None:
-            raise RuntimeError("report publisher is not connected")
+            try:
+                await self.connect()
+            except (AMQPException, OSError) as error:
+                raise RuntimeError("report publisher is not connected") from error
 
         job_id = uuid4()
         payload = {

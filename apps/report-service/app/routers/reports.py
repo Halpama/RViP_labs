@@ -86,7 +86,7 @@ async def export_report(request: Request) -> dict[str, str]:
         )
     except (AMQPException, OSError, RuntimeError) as error:
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="report queue is unavailable",
         ) from error
 

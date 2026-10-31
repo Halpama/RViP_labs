@@ -84,6 +84,12 @@ Report API доступен под `/report-service/`: `GET /reports/readers`,
 возвращает `202` с `job_id` и именем файла. После обработки сохранённый файл
 можно скачать через `/file-storage/files/{filename}`.
 
+RabbitMQ не является условием запуска HTTP API: если брокер временно недоступен,
+`report-service` и `file-storage-service` продолжают работать. Экспорт в этот
+момент возвращает `503 Service Unavailable`, а storage-consumer повторяет
+подключение каждые 5 секунд и начинает обработку очереди после восстановления
+RabbitMQ.
+
 Postman: импортируйте `postman/library.postman_collection.json` и
 `postman/local.postman_environment.json`, затем запустите папку
 `Сквозной сценарий`.

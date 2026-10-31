@@ -5,6 +5,7 @@ import os
 import socket
 
 import httpx
+from aio_pika.exceptions import AMQPException
 from fastapi import FastAPI
 from starlette.requests import Request
 
@@ -13,6 +14,7 @@ from .queue import ReportPublisher
 from .routers import reports
 
 request_logger = logging.getLogger("request")
+queue_logger = logging.getLogger("queue")
 
 
 @asynccontextmanager
@@ -23,7 +25,10 @@ async def lifespan(application: FastAPI):
         application.state.settings.rabbitmq_url
     )
     try:
-        await application.state.report_publisher.connect()
+        try:
+            await application.state.report_publisher.connect()
+        except (AMQPException, OSError) as error:
+            queue_logger.warning("RabbitMQ is unavailable at startup: %s", error)
         yield
     finally:
         await application.state.http_client.aclose()
