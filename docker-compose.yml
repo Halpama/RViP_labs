@@ -48,6 +48,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-library}:${POSTGRES_PASSWORD:-library}@postgres:5432/${POSTGRES_DB:-library}
       APP_PORT: 3001
+      INSTANCE_NAME: ${READER_INSTANCE_NAME:-reader-service}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:3001/readers')\""]
       interval: 5s
@@ -66,6 +67,7 @@ services:
       READER_SERVICE_URL: http://reader-service:3001
       RABBITMQ_URL: amqp://library:library@rabbitmq:5672/
       APP_PORT: 3002
+      INSTANCE_NAME: ${REPORT_INSTANCE_NAME:-report-service}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:3002/docs')\""]
       interval: 5s
@@ -100,6 +102,57 @@ services:
     networks:
       - internal
 
+  loki:
+    image: grafana/loki:3.5.5
+    command: ["-config.file=/etc/loki/loki-config.yaml"]
+    volumes:
+      - ./observability/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki-data:/loki
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - internal
+
+  promtail:
+    image: grafana/promtail:3.5.5
+    command: ["-config.file=/etc/promtail/promtail-config.yaml"]
+    volumes:
+      - ./observability/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    depends_on:
+      - loki
+    networks:
+      - internal
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    depends_on:
+      - loki
+    networks:
+      - public
+      - internal
+
   gateway:
     image: nginx:1.27-alpine
     ports:
@@ -123,3 +176,5 @@ networks:
 
 volumes:
   file_storage:
+  loki-data:
+  grafana-data:
