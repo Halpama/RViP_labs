@@ -20,6 +20,10 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: library
       RABBITMQ_DEFAULT_PASS: library
+    ports:
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 5s
@@ -178,3 +182,4 @@ volumes:
   file_storage:
   loki-data:
   grafana-data:
+  rabbitmq-data:
