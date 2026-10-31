@@ -4,8 +4,8 @@
 read-only `report-service` и `file-storage-service`, доступных через nginx
 gateway.
 `report-service` не подключается к PostgreSQL: он получает данные только по
-REST от `reader-service`, формирует CSV и передаёт его в файловое хранилище
-через REST.
+REST от `reader-service`, формирует CSV и публикует задание в RabbitMQ.
+`file-storage-service` потребляет его из durable-очереди и сохраняет файл.
 
 ## Запуск
 
@@ -45,9 +45,9 @@ Reader API доступен под `/reader-service/`: создание, про�
 выдача/возврат книги, изъятие билета и удаление читателя.
 Report API доступен под `/report-service/`: `GET /reports/readers`,
 `GET /reports/summary` и `POST /reports/export`. Последний запрашивает
-`GET /readers` у reader-service, формирует CSV и передаёт его в
-file-storage-service с таймаутом 5 секунд. Сохранённый файл можно скачать
-через `/file-storage/files/{filename}`.
+`GET /readers` у reader-service, формирует CSV, публикует задание в RabbitMQ и
+возвращает `202` с `job_id` и именем файла. После обработки сохранённый файл
+можно скачать через `/file-storage/files/{filename}`.
 
 Postman: импортируйте `postman/library.postman_collection.json` и
 `postman/local.postman_environment.json`, затем запустите папку

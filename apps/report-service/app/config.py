@@ -18,9 +18,9 @@ class Settings(BaseSettings):
         default="http://reader-service:3001",
         validation_alias="READER_SERVICE_URL",
     )
-    file_storage_url: str = Field(
-        default="http://file-storage-service:3003",
-        validation_alias="FILE_STORAGE_URL",
+    rabbitmq_url: str = Field(
+        default="amqp://guest:guest@rabbitmq:5672/",
+        validation_alias="RABBITMQ_URL",
     )
     app_port: int = Field(default=3002, validation_alias="APP_PORT")
     model_config = SettingsConfigDict(env_file=find_env_file(), extra="ignore")
@@ -30,10 +30,6 @@ class Settings(BaseSettings):
     def normalize_reader_service_url(cls, value: str) -> str:
         return value.rstrip("/")
 
-    @field_validator("file_storage_url")
-    @classmethod
-    def normalize_file_storage_url(cls, value: str) -> str:
-        return value.rstrip("/")
 
 
 @lru_cache

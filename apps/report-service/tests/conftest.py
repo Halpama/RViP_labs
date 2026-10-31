@@ -3,6 +3,7 @@ from collections.abc import Callable
 import httpx
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient, MockTransport, Request, Response
+from uuid import UUID, uuid4
 
 from app.config import Settings
 from app.main import app
@@ -33,8 +34,15 @@ async def reader_transport():
     app.state.http_client = service_client
     app.state.settings = Settings(
         READER_SERVICE_URL="http://reader-service:3001",
-        FILE_STORAGE_URL="http://file-storage-service:3003",
     )
+    published: list[tuple[str, bytes]] = []
+
+    class FakePublisher:
+        async def publish(self, filename: str, content: bytes) -> UUID:
+            published.append((filename, content))
+            return uuid4()
+
+    app.state.report_publisher = FakePublisher()
     try:
         yield handlers
     finally:

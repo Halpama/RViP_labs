@@ -1,17 +1,43 @@
 import re
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 
+from .config import Settings
+from .queue import StorageConsumer
+
 STORAGE_ROOT = Path("/storage")
 SAFE_FILENAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
-app = FastAPI(
-    title="Library File Storage Service",
-    version="1.0.0",
-    root_path="/file-storage",
-)
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    application.state.settings = Settings()
+    consumer = StorageConsumer(
+        application.state.settings.rabbitmq_url,
+        STORAGE_ROOT,
+    )
+    await consumer.start()
+    application.state.storage_consumer = consumer
+    try:
+        yield
+    finally:
+        await consumer.close()
+
+
+def create_app() -> FastAPI:
+    application = FastAPI(
+        title="Library File Storage Service",
+        version="1.0.0",
+        root_path="/file-storage",
+        lifespan=lifespan,
+    )
+    return application
+
+
+app = create_app()
 
 
 @app.get("/health")

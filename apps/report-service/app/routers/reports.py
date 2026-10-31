@@ -3,6 +3,7 @@ import io
 from datetime import datetime, timezone
 
 import httpx
+from aio_pika.exceptions import AMQPException
 from fastapi import APIRouter, HTTPException, Request, status
 
 from ..schemas import ReaderReport, SummaryResponse
@@ -74,42 +75,24 @@ def readers_csv(reader_list: list[ReaderReport]) -> bytes:
     return output.getvalue().encode("utf-8")
 
 
-@router.post("/export")
+@router.post("/export", status_code=status.HTTP_202_ACCEPTED)
 async def export_report(request: Request) -> dict[str, str]:
     reader_list = await fetch_readers(request)
     filename = f"readers-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.csv"
-    client: httpx.AsyncClient = request.app.state.http_client
-    settings = request.app.state.settings
     try:
-        response = await client.post(
-            f"{settings.file_storage_url}/files",
-            files={"file": (filename, readers_csv(reader_list), "text/csv; charset=utf-8")},
+        job_id = await request.app.state.report_publisher.publish(
+            filename,
+            readers_csv(reader_list),
         )
-        response.raise_for_status()
-    except httpx.TimeoutException as error:
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="file-storage request timed out",
-        ) from error
-    except httpx.HTTPStatusError as error:
+    except (AMQPException, OSError, RuntimeError) as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"file-storage returned HTTP {error.response.status_code}",
-        ) from error
-    except httpx.RequestError as error:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="file-storage is unavailable",
+            detail="report queue is unavailable",
         ) from error
 
-    try:
-        result = response.json()
-        return {
-            "filename": result["filename"],
-            "download_url": f"/file-storage/files/{result['filename']}",
-        }
-    except (KeyError, TypeError, ValueError) as error:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="file-storage returned an invalid response",
-        ) from error
+    return {
+        "job_id": str(job_id),
+        "filename": filename,
+        "status": "queued",
+        "download_url": f"/file-storage/files/{filename}",
+    }

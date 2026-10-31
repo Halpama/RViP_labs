@@ -75,17 +75,13 @@ async def test_reader_service_timeout_is_returned_as_504(client, reader_transpor
 
 
 @pytest.mark.asyncio
-async def test_export_sends_csv_to_file_storage(client, reader_transport):
+async def test_export_publishes_csv_to_queue(client, reader_transport):
     payload = [reader(1, "Algorithms"), reader(2, None)]
     reader_transport.append(lambda request: Response(200, json=payload))
-    reader_transport.append(
-        lambda request: Response(201, json={"filename": "readers-report.csv"})
-    )
-
     response = await client.post("/reports/export")
 
-    assert response.status_code == 200
-    assert response.json() == {
-        "filename": "readers-report.csv",
-        "download_url": "/file-storage/files/readers-report.csv",
-    }
+    assert response.status_code == 202
+    result = response.json()
+    assert result["status"] == "queued"
+    assert result["filename"].startswith("readers-")
+    assert result["download_url"] == f"/file-storage/files/{result['filename']}"
