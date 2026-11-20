@@ -18,6 +18,10 @@ class Settings(BaseSettings):
         default="http://reader-service:3001",
         validation_alias="READER_SERVICE_URL",
     )
+    file_storage_service_url: str = Field(
+        default="http://file-storage-service:3003",
+        validation_alias="FILE_STORAGE_SERVICE_URL",
+    )
     rabbitmq_url: str = Field(
         default="amqp://guest:guest@rabbitmq:5672/",
         validation_alias="RABBITMQ_URL",
@@ -28,6 +32,11 @@ class Settings(BaseSettings):
     @field_validator("reader_service_url")
     @classmethod
     def normalize_reader_service_url(cls, value: str) -> str:
+        return value.rstrip("/")
+
+    @field_validator("file_storage_service_url")
+    @classmethod
+    def normalize_file_storage_service_url(cls, value: str) -> str:
         return value.rstrip("/")
 
 

@@ -85,3 +85,25 @@ async def test_export_publishes_csv_to_queue(client, reader_transport):
     assert result["status"] == "queued"
     assert result["filename"].startswith("readers-")
     assert result["download_url"] == f"/file-storage/files/{result['filename']}"
+
+
+@pytest.mark.asyncio
+async def test_export_download_requests_file_storage_through_future(
+    client,
+    reader_transport,
+):
+    reader_transport.append(
+        lambda request: Response(
+            200,
+            content=b"id,full_name\n1,Reader 1\n",
+            headers={"content-type": "text/csv"},
+        )
+    )
+
+    response = await client.get("/reports/export/readers-test.csv")
+
+    assert response.status_code == 200
+    assert response.content == b"id,full_name\n1,Reader 1\n"
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="readers-test.csv"'
+    )

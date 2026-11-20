@@ -1,11 +1,64 @@
+import asyncio
+import re
+
 import httpx
 from aio_pika.exceptions import AMQPException
 from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.responses import Response
 
 from ..schemas import ReaderReport, SummaryResponse
 from ..saga import ReportExportSaga
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+SAFE_FILENAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+
+
+async def request_file(
+    client: httpx.AsyncClient,
+    file_storage_service_url: str,
+    filename: str,
+) -> httpx.Response:
+    future: asyncio.Future[httpx.Response] = asyncio.ensure_future(
+        client.get(f"{file_storage_service_url}/files/{filename}")
+    )
+    return await future
+
+
+async def fetch_export(request: Request, filename: str) -> httpx.Response:
+    if not SAFE_FILENAME.fullmatch(filename):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="file not found")
+
+    client: httpx.AsyncClient = request.app.state.http_client
+    settings = request.app.state.settings
+    try:
+        response = await request_file(
+            client,
+            settings.file_storage_service_url,
+            filename,
+        )
+        response.raise_for_status()
+    except httpx.TimeoutException as error:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="file-storage-service request timed out",
+        ) from error
+    except httpx.HTTPStatusError as error:
+        if error.response.status_code == status.HTTP_404_NOT_FOUND:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="file not found",
+            ) from error
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"file-storage-service returned HTTP {error.response.status_code}",
+        ) from error
+    except httpx.RequestError as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="file-storage-service is unavailable",
+        ) from error
+    return response
 
 
 async def fetch_readers(request: Request) -> list[ReaderReport]:
@@ -72,3 +125,15 @@ async def export_report(request: Request) -> dict[str, str]:
         "status": "queued",
         "download_url": f"/file-storage/files/{result.filename}",
     }
+
+
+@router.get("/export/{filename}")
+async def download_export(request: Request, filename: str) -> Response:
+    response = await fetch_export(request, filename)
+    return Response(
+        content=response.content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
