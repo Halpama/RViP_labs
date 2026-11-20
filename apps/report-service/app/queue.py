@@ -1,11 +1,14 @@
 import base64
 import json
+import time
 from uuid import UUID, uuid4
 
 import aio_pika
 from aio_pika import DeliveryMode, ExchangeType, Message
 from aio_pika.exceptions import AMQPException
+from opentelemetry import trace
 
+from .tracing import inject_headers
 
 EXPORT_EXCHANGE = "library.reports"
 EXPORT_QUEUE = "library.file-storage"
@@ -42,20 +45,29 @@ class ReportPublisher:
             except (AMQPException, OSError) as error:
                 raise RuntimeError("report publisher is not connected") from error
 
-        job_id = uuid4()
-        payload = {
-            "schema": MESSAGE_SCHEMA,
-            "job_id": str(job_id),
-            "filename": filename,
-            "content_base64": base64.b64encode(content).decode("ascii"),
-        }
-        await self.exchange.publish(
-            Message(
-                json.dumps(payload).encode("utf-8"),
-                content_type="application/json",
-                delivery_mode=DeliveryMode.PERSISTENT,
-                message_id=str(job_id),
-            ),
-            routing_key=EXPORT_ROUTING_KEY,
-        )
+        tracer = trace.get_tracer("library.rabbitmq")
+        with tracer.start_as_current_span("rabbitmq.publish report-export") as span:
+            job_id = uuid4()
+            payload = {
+                "schema": MESSAGE_SCHEMA,
+                "job_id": str(job_id),
+                "filename": filename,
+                "content_base64": base64.b64encode(content).decode("ascii"),
+            }
+            headers: dict[str, str] = {
+                "x-published-at-ns": str(time.time_ns()),
+            }
+            inject_headers(headers)
+            span.set_attribute("messaging.system", "rabbitmq")
+            span.set_attribute("messaging.destination.name", EXPORT_QUEUE)
+            await self.exchange.publish(
+                Message(
+                    json.dumps(payload).encode("utf-8"),
+                    content_type="application/json",
+                    delivery_mode=DeliveryMode.PERSISTENT,
+                    message_id=str(job_id),
+                    headers=headers,
+                ),
+                routing_key=EXPORT_ROUTING_KEY,
+            )
         return job_id

@@ -71,6 +71,8 @@ services:
       READER_SERVICE_URL: http://reader-service:3001
       RABBITMQ_URL: amqp://library:library@rabbitmq:5672/
       APP_PORT: 3002
+      OTEL_SERVICE_NAME: report-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
       INSTANCE_NAME: ${REPORT_INSTANCE_NAME:-report-service}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:3002/docs')\""]
@@ -82,8 +84,6 @@ services:
         condition: service_healthy
       file-storage-service:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     networks:
       - internal
 
@@ -93,6 +93,8 @@ services:
     environment:
       RABBITMQ_URL: amqp://library:library@rabbitmq:5672/
       APP_PORT: 3003
+      OTEL_SERVICE_NAME: file-storage-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     volumes:
       - file_storage:/storage
     healthcheck:
@@ -100,10 +102,17 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
     networks:
+      - internal
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.75.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "127.0.0.1:16686:16686"
+    networks:
+      - public
       - internal
 
   loki:

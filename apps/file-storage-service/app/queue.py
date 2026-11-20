@@ -4,10 +4,15 @@ import binascii
 import json
 import logging
 import re
+import time
+from collections.abc import Mapping
 from pathlib import Path
 
 import aio_pika
 from aio_pika import ExchangeType
+from opentelemetry import trace
+
+from .tracing import extract_context
 
 EXPORT_EXCHANGE = "library.reports"
 EXPORT_QUEUE = "library.file-storage"
@@ -70,6 +75,26 @@ class StorageConsumer:
                 await self._handle(message)
 
     async def _handle(self, message: aio_pika.abc.AbstractIncomingMessage) -> None:
+        tracer = trace.get_tracer("library.rabbitmq")
+        headers = message.headers if isinstance(message.headers, Mapping) else {}
+        published_at = headers.get("x-published-at-ns")
+        start_time = int(published_at) if str(published_at).isdigit() else None
+        span = tracer.start_span(
+            "rabbitmq.consume report-export",
+            context=extract_context(headers),
+            start_time=start_time,
+        )
+        span.set_attribute("messaging.system", "rabbitmq")
+        span.set_attribute("messaging.destination.name", EXPORT_QUEUE)
+        if start_time is not None:
+            span.set_attribute(
+                "rabbitmq.queue_delay_ms",
+                max(0, (time.time_ns() - start_time) / 1_000_000),
+            )
+        with trace.use_span(span, end_on_exit=True):
+            await self._handle_with_span(message)
+
+    async def _handle_with_span(self, message: aio_pika.abc.AbstractIncomingMessage) -> None:
         try:
             payload = json.loads(message.body)
             filename = payload["filename"]

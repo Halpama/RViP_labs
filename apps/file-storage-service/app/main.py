@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 
 from .config import Settings
 from .queue import StorageConsumer
+from .tracing import configure_tracing
 
 STORAGE_ROOT = Path("/storage")
 SAFE_FILENAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
@@ -14,6 +15,7 @@ SAFE_FILENAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    configure_tracing()
     application.state.settings = Settings()
     consumer = StorageConsumer(
         application.state.settings.rabbitmq_url,

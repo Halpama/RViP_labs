@@ -12,6 +12,7 @@ from starlette.requests import Request
 from .config import get_settings
 from .queue import ReportPublisher
 from .routers import reports
+from .tracing import configure_tracing
 
 request_logger = logging.getLogger("request")
 queue_logger = logging.getLogger("queue")
@@ -19,6 +20,7 @@ queue_logger = logging.getLogger("queue")
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    configure_tracing()
     application.state.settings = get_settings()
     application.state.http_client = httpx.AsyncClient(timeout=5.0)
     application.state.report_publisher = ReportPublisher(

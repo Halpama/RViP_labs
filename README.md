@@ -4,8 +4,9 @@
 read-only `report-service` и `file-storage-service`, доступных через nginx
 gateway.
 `report-service` не подключается к PostgreSQL: он получает данные только по
-REST от `reader-service`, формирует CSV и публикует задание в RabbitMQ.
-`file-storage-service` потребляет его из durable-очереди и сохраняет файл.
+REST от `reader-service`, запускает Saga экспорта, формирует CSV и публикует
+задание в RabbitMQ. `file-storage-service` потребляет его из durable-очереди и
+сохраняет файл.
 
 ## Запуск
 
@@ -22,7 +23,12 @@ docker compose up --build -d
 docker compose up --build --scale reader-service=2
 ```
 
-Вместе с приложениями запускаются Loki, Promtail и Grafana. Promtail читает
+Вместе с приложениями запускаются RabbitMQ, Jaeger, Loki, Promtail и Grafana.
+Jaeger доступен по адресу http://127.0.0.1:16686. В trace видны шаги
+`saga.report-export`, `rabbitmq.publish report-export` и
+`rabbitmq.consume report-export`; у consumer span есть атрибут
+`rabbitmq.queue_delay_ms`, показывающий задержку сообщения в очереди.
+Promtail читает
 stdout/stderr всех контейнеров проекта через Docker API и отправляет записи в
 Loki. Loki и Promtail доступны только во внутренней сети Compose; наружу
 опубликован только Grafana:
@@ -84,11 +90,14 @@ Report API доступен под `/report-service/`: `GET /reports/readers`,
 возвращает `202` с `job_id` и именем файла. После обработки сохранённый файл
 можно скачать через `/file-storage/files/{filename}`.
 
-RabbitMQ не является условием запуска HTTP API: если брокер временно недоступен,
+RabbitMQ не является условием запуска HTTP API: его можно остановить или не
+запускать, и сервисы продолжат обслуживать REST-запросы. Если брокер временно недоступен,
 `report-service` и `file-storage-service` продолжают работать. Экспорт в этот
 момент возвращает `503 Service Unavailable`, а storage-consumer повторяет
 подключение каждые 5 секунд и начинает обработку очереди после восстановления
-RabbitMQ.
+RabbitMQ. После запуска брокера Saga экспорта снова выполняется без
+перезапуска приложений. Jaeger также необязателен: без него бизнес-операции
+остаются рабочими, но traces не экспортируются.
 
 Postman: импортируйте `postman/library.postman_collection.json` и
 `postman/local.postman_environment.json`, затем запустите папку
