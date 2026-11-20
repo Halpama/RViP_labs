@@ -27,6 +27,11 @@ class Settings(BaseSettings):
         validation_alias="RABBITMQ_URL",
     )
     app_port: int = Field(default=3002, validation_alias="APP_PORT")
+    auth_enabled: bool = Field(default=False, validation_alias="AUTH_ENABLED")
+    jwt_secret: str = Field(default="local-development-secret", validation_alias="JWT_SECRET")
+    jwt_expire_minutes: int = Field(default=30, validation_alias="JWT_EXPIRE_MINUTES")
+    auth_username: str = Field(default="admin", validation_alias="AUTH_USERNAME")
+    auth_password: str = Field(default="admin", validation_alias="AUTH_PASSWORD")
     model_config = SettingsConfigDict(env_file=find_env_file(), extra="ignore")
 
     @field_validator("reader_service_url")

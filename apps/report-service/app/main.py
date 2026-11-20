@@ -6,10 +6,13 @@ import socket
 
 import httpx
 from aio_pika.exceptions import AMQPException
-from fastapi import FastAPI
+from fastapi import FastAPI, Form, HTTPException, status
+from fastapi.responses import Response
 from starlette.requests import Request
 
 from .config import get_settings
+from .auth import create_access_token
+from .observability import metrics_response, observe_request
 from .queue import ReportPublisher
 from .routers import reports
 from .tracing import configure_tracing
@@ -46,31 +49,27 @@ def create_app() -> FastAPI:
     )
     application.include_router(reports.router)
 
-    @application.middleware("http")
-    async def log_requests(request: Request, call_next):
-        try:
-            response = await call_next(request)
-        except Exception:
-            status_code = 500
-            raise
-        else:
-            status_code = response.status_code
-        finally:
-            request_logger.info(
-                json.dumps(
-                    {
-                        "method": request.method,
-                        "path": request.url.path,
-                        "status_code": status_code,
-                        "hostname": os.environ.get("HOSTNAME") or socket.gethostname(),
-                        "instance_name": os.environ.get("INSTANCE_NAME", "report-service"),
-                    },
-                    separators=(",", ":"),
-                )
-            )
-        return response
+    application.middleware("http")(observe_request)
 
     return application
 
 
 app = create_app()
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/metrics")
+async def metrics() -> Response:
+    return metrics_response()
+
+
+@app.post("/auth/token")
+async def token(username: str = Form(...), password: str = Form(...)) -> dict[str, str]:
+    settings = get_settings()
+    if username != settings.auth_username or password != settings.auth_password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid credentials")
+    return {"access_token": create_access_token(username), "token_type": "bearer"}

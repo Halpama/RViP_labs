@@ -103,6 +103,13 @@ Postman: импортируйте `postman/library.postman_collection.json` и
 `postman/local.postman_environment.json`, затем запустите папку
 `Сквозной сценарий`.
 
+Для защищённого запуска задайте `JWT_SECRET` и получите токен через
+`POST /reader-service/auth/token` с form-полями `username` и `password`
+(по умолчанию `admin`/`admin`). Передавайте его как `Authorization: Bearer
+<token>` во все бизнес-запросы. Каждый сервис также публикует `/metrics`;
+запросы получают `X-Request-ID`, структурированно логируются и создают
+OpenTelemetry span.
+
 ## Тесты
 
 Из корня репозитория:

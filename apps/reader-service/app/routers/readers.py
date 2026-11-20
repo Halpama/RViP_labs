@@ -4,11 +4,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
+from ..auth import require_auth
 from ..errors import conflict, not_found
 from ..models import Reader
 from ..schemas import IssueBookRequest, ReaderCreate, ReaderResponse, ReaderUpdate
 
-router = APIRouter(prefix="/readers", tags=["readers"])
+router = APIRouter(prefix="/readers", tags=["readers"], dependencies=[Depends(require_auth)])
 
 
 async def locked_reader(reader_id: int, session: AsyncSession) -> Reader:

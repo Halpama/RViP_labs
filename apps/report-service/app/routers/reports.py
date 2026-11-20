@@ -3,13 +3,14 @@ import re
 
 import httpx
 from aio_pika.exceptions import AMQPException
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import Response
 
 from ..schemas import ReaderReport, SummaryResponse
+from ..auth import require_auth
 from ..saga import ReportExportSaga
 
-router = APIRouter(prefix="/reports", tags=["reports"])
+router = APIRouter(prefix="/reports", tags=["reports"], dependencies=[Depends(require_auth)])
 SAFE_FILENAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 
@@ -17,9 +18,10 @@ async def request_file(
     client: httpx.AsyncClient,
     file_storage_service_url: str,
     filename: str,
+    headers: dict[str, str] | None = None,
 ) -> httpx.Response:
     future: asyncio.Future[httpx.Response] = asyncio.ensure_future(
-        client.get(f"{file_storage_service_url}/files/{filename}")
+        client.get(f"{file_storage_service_url}/files/{filename}", headers=headers)
     )
     return await future
 
@@ -36,6 +38,7 @@ async def fetch_export(request: Request, filename: str) -> httpx.Response:
             client,
             settings.file_storage_service_url,
             filename,
+            _forward_auth(request),
         )
         response.raise_for_status()
     except httpx.TimeoutException as error:
@@ -65,7 +68,10 @@ async def fetch_readers(request: Request) -> list[ReaderReport]:
     client: httpx.AsyncClient = request.app.state.http_client
     settings = request.app.state.settings
     try:
-        response = await client.get(f"{settings.reader_service_url}/readers")
+        response = await client.get(
+            f"{settings.reader_service_url}/readers",
+            headers=_forward_auth(request),
+        )
         response.raise_for_status()
     except httpx.TimeoutException as error:
         raise HTTPException(
@@ -90,6 +96,11 @@ async def fetch_readers(request: Request) -> list[ReaderReport]:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="reader-service returned an invalid reader list",
         ) from error
+
+
+def _forward_auth(request: Request) -> dict[str, str]:
+    authorization = request.headers.get("authorization")
+    return {"Authorization": authorization} if authorization else {}
 
 
 @router.get("/readers", response_model=list[ReaderReport])
